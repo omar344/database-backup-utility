@@ -108,7 +108,7 @@ dotnet run --project DbBackupUtility -- restore \
   --user admin \
   --password admin \
   --database testdb \
-  --file Backups/testdb_20260623_130000.backup
+  --file Backups/testdb_20260623130000.backup
 ```
 
 ## LinkedIn-ready project summary

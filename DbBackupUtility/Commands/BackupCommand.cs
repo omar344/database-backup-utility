@@ -74,7 +74,7 @@ public static class BackupCommand
             return filePath;
         }
 
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
         return Path.Combine(outputDir, $"{databaseName}_{timestamp}.backup");
     }
 }
