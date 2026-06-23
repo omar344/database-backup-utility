@@ -192,6 +192,23 @@ dotnet run --project DbBackupUtility -- restore \
   --file Backups/testdb_2026-06-23.backup
 ```
 
+## Development
+
+### Adding a New Provider
+1. Create a new class in `DbBackupUtility/Providers/` that implements `IDatabaseProvider`.
+2. Implement `TestConnectionAsync`, `BackupDatabaseAsync`, and `RestoreDatabaseAsync`.
+3. Update `Commands` to register your new provider in the `provider` resolution block (or use a Provider Factory).
+
+### Building and Testing locally
+To build the project:
+```bash
+dotnet build DbBackupUtility/DbBackupUtility.csproj
+```
+To run the dockerized test databases:
+```bash
+docker compose up -d
+```
+
 ### Help
 
 ```bash

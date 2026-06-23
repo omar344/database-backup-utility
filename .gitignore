@@ -1,0 +1,13 @@
+# .NET Core
+bin/
+obj/
+
+# Project specifics
+Backups/
+Logs/
+
+# IDEs
+.idea/
+.vscode/
+*.user
+*.suo
