@@ -19,6 +19,8 @@ namespace DbBackupUtility.Commands
             var passwordOption = new Option<string>("--password", "Database password") { IsRequired = true };
             var databaseOption = new Option<string>("--database", "Database name") { IsRequired = true };
             var outputOption = new Option<string?>("--output", () => null, "Optional. Path to store the backup file. If not provided, it generates one in the Backups folder.");
+            var typeOption = new Option<BackupType>("--type", () => BackupType.Full, "Type of backup to perform: Full, Incremental, or Differential.");
+            var compressOption = new Option<bool>("--compress", () => false, "Compress the final backup output to .zip.");
 
             AddOption(providerOption);
             AddOption(hostOption);
@@ -27,26 +29,37 @@ namespace DbBackupUtility.Commands
             AddOption(passwordOption);
             AddOption(databaseOption);
             AddOption(outputOption);
+            AddOption(typeOption);
+            AddOption(compressOption);
 
-            this.SetHandler(async (string provider, string host, int port, string user, string password, string database, string? output) =>
+            this.SetHandler((System.CommandLine.Invocation.InvocationContext context) =>
             {
-                LoggingService.LogInformation($"Starting backup for {provider} database '{database}' on {host}:{port}...");
+                var provider = context.ParseResult.GetValueForOption(providerOption)!;
+                var host = context.ParseResult.GetValueForOption(hostOption)!;
+                var port = context.ParseResult.GetValueForOption(portOption);
+                var user = context.ParseResult.GetValueForOption(userOption)!;
+                var password = context.ParseResult.GetValueForOption(passwordOption)!;
+                var database = context.ParseResult.GetValueForOption(databaseOption)!;
+                var output = context.ParseResult.GetValueForOption(outputOption);
+                var type = context.ParseResult.GetValueForOption(typeOption);
+                var compress = context.ParseResult.GetValueForOption(compressOption);
+
+                LoggingService.LogInformation($"Starting {type} backup for {provider} database '{database}' on {host}:{port}...");
                 
                 IDatabaseProvider dbProvider;
-                if (provider.ToLower() == "postgres")
+                try
                 {
                     var connectionInfo = new DatabaseConnectionInfo(host, port, database, user, password);
-                    dbProvider = new PostgreSqlProvider(connectionInfo);
+                    dbProvider = DatabaseProviderFactory.Create(provider, connectionInfo);
                 }
-                else
+                catch (NotSupportedException ex)
                 {
-                    LoggingService.LogError($"Provider '{provider}' is not supported yet.");
-                    return;
+                    LoggingService.LogError(ex.Message);
+                    return Task.CompletedTask;
                 }
 
                 string backupPath = output ?? Path.Combine(Directory.GetCurrentDirectory(), "Backups", $"{database}_{DateTime.Now:yyyyMMddHHmmss}.backup");
 
-                // Ensure the Backups directory exists if we are using the default path
                 string? dir = Path.GetDirectoryName(backupPath);
                 if (dir != null && !Directory.Exists(dir))
                 {
@@ -55,7 +68,14 @@ namespace DbBackupUtility.Commands
 
                 try
                 {
-                    await dbProvider.BackupDatabaseAsync(backupPath);
+                    dbProvider.BackupDatabaseAsync(backupPath, type).Wait();
+                    
+                    if (compress)
+                    {
+                        var compressor = new CompressionService();
+                        backupPath = compressor.CompressAsync(backupPath).Result;
+                    }
+                    
                     LoggingService.LogInformation($"Backup completed successfully. Saved to: {backupPath}");
                 }
                 catch (Exception ex)
@@ -63,7 +83,8 @@ namespace DbBackupUtility.Commands
                     LoggingService.LogError("Backup failed.", ex);
                 }
                 
-            }, providerOption, hostOption, portOption, userOption, passwordOption, databaseOption, outputOption);
+                return Task.CompletedTask;
+            });
         }
     }
 }

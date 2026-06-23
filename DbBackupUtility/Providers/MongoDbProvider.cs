@@ -1,33 +1,34 @@
 using System.Diagnostics;
-using DbBackupUtility.Providers;
 using DbBackupUtility.Models;
+using MongoDB.Driver;
+using MongoDB.Bson;
 
 namespace DbBackupUtility.Providers
 {
-    public class PostgreSqlProvider : IDatabaseProvider
+    public class MongoDbProvider : IDatabaseProvider
     {
         private readonly DatabaseConnectionInfo _connectionInfo;
         private readonly string _containerName;
 
-        public string ProviderName => "PostgreSQL";
+        public string ProviderName => "MongoDB";
 
-        public PostgreSqlProvider(DatabaseConnectionInfo connectionInfo, string? containerName = null)
+        public MongoDbProvider(DatabaseConnectionInfo connectionInfo, string? containerName = null)
         {
             _connectionInfo = connectionInfo;
-            _containerName = string.IsNullOrWhiteSpace(containerName) ? "database-backup-utility-postgres-1" : containerName;
+            _containerName = string.IsNullOrWhiteSpace(containerName) ? "database-backup-utility-mongo-1" : containerName;
         }
 
         public async Task<bool> TestConnectionAsync()
         {
             try
             {
-                using (var connection = new Npgsql.NpgsqlConnection(
-                    $"Host={_connectionInfo.Host};Port={_connectionInfo.Port};Username={_connectionInfo.Username};Password={_connectionInfo.Password};Database={_connectionInfo.DatabaseName}"))
-                {
-                    await connection.OpenAsync();
-                    Console.WriteLine("Connection test successful!");
-                    return true;
-                }
+                var credentials = string.IsNullOrEmpty(_connectionInfo.Username) ? "" : $"{_connectionInfo.Username}:{_connectionInfo.Password}@";
+                string connectionString = $"mongodb://{credentials}{_connectionInfo.Host}:{_connectionInfo.Port}";
+                var client = new MongoClient(connectionString);
+                var database = client.GetDatabase(_connectionInfo.DatabaseName);
+                await database.RunCommandAsync((Command<BsonDocument>)"{ping:1}");
+                Console.WriteLine("Connection test successful!");
+                return true;
             }
             catch (Exception ex)
             {
@@ -41,7 +42,7 @@ namespace DbBackupUtility.Providers
             if (type != BackupType.Full)
                 throw new NotSupportedException($"BackupType {type} is currently not supported for {ProviderName}.");
 
-            string arguments = $"exec {_containerName} pg_dump -U {_connectionInfo.Username} -d {_connectionInfo.DatabaseName} -F c -f /tmp/backup.sql";
+            string arguments = $"exec {_containerName} sh -c \"mongodump --username {_connectionInfo.Username} --password {_connectionInfo.Password} --authenticationDatabase admin --db {_connectionInfo.DatabaseName} --archive=/tmp/backup.archive\"";
 
             var processStartInfo = new ProcessStartInfo
             {
@@ -62,11 +63,11 @@ namespace DbBackupUtility.Providers
                 if (process.ExitCode != 0)
                 {
                     string error = await process.StandardError.ReadToEndAsync();
-                    throw new Exception($"pg_dump failed with exit code {process.ExitCode}: {error}");
+                    throw new Exception($"mongodump failed with exit code {process.ExitCode}: {error}");
                 }
             }
 
-            string copyArguments = $"cp {_containerName}:/tmp/backup.sql \"{backupFilePath}\"";
+            string copyArguments = $"cp {_containerName}:/tmp/backup.archive \"{backupFilePath}\"";
             var copyProcessStartInfo = new ProcessStartInfo
             {
                 FileName = "docker",
@@ -94,8 +95,7 @@ namespace DbBackupUtility.Providers
 
         public async Task RestoreDatabaseAsync(string backupFilePath)
         {
-            // 1. Copy backup file into container
-            string copyArguments = $"cp \"{backupFilePath}\" {_containerName}:/tmp/restore.sql";
+            string copyArguments = $"cp \"{backupFilePath}\" {_containerName}:/tmp/restore.archive";
             var copyProcessStartInfo = new ProcessStartInfo
             {
                 FileName = "docker",
@@ -118,9 +118,7 @@ namespace DbBackupUtility.Providers
                 }
             }
 
-            // 2. Execute pg_restore inside container
-            // Use --clean to drop existing objects before restoring
-            string arguments = $"exec {_containerName} pg_restore -U {_connectionInfo.Username} -d {_connectionInfo.DatabaseName} --clean /tmp/restore.sql";
+            string arguments = $"exec {_containerName} sh -c \"mongorestore --username {_connectionInfo.Username} --password {_connectionInfo.Password} --authenticationDatabase admin --drop --archive=/tmp/restore.archive\"";
 
             var processStartInfo = new ProcessStartInfo
             {
@@ -141,7 +139,7 @@ namespace DbBackupUtility.Providers
                 if (process.ExitCode != 0)
                 {
                     string error = await process.StandardError.ReadToEndAsync();
-                    throw new Exception($"pg_restore failed with exit code {process.ExitCode}: {error}");
+                    throw new Exception($"mongorestore failed with exit code {process.ExitCode}: {error}");
                 }
             }
 
@@ -149,5 +147,3 @@ namespace DbBackupUtility.Providers
         }
     }
 }
-
-    

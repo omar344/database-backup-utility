@@ -1,3 +1,6 @@
+using System.Threading.Tasks;
+using DbBackupUtility.Models;
+
 namespace DbBackupUtility.Providers
 {
     public interface IDatabaseProvider
@@ -6,7 +9,7 @@ namespace DbBackupUtility.Providers
 
         Task<bool> TestConnectionAsync();
 
-        Task BackupDatabaseAsync(string backupFilePath);
+        Task BackupDatabaseAsync(string backupFilePath, BackupType type = BackupType.Full);
 
         Task RestoreDatabaseAsync(string backupFilePath);
     }

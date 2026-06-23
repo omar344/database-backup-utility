@@ -1,33 +1,31 @@
 using System.Diagnostics;
-using DbBackupUtility.Providers;
 using DbBackupUtility.Models;
+using MySqlConnector;
 
 namespace DbBackupUtility.Providers
 {
-    public class PostgreSqlProvider : IDatabaseProvider
+    public class MySqlProvider : IDatabaseProvider
     {
         private readonly DatabaseConnectionInfo _connectionInfo;
         private readonly string _containerName;
 
-        public string ProviderName => "PostgreSQL";
+        public string ProviderName => "MySQL";
 
-        public PostgreSqlProvider(DatabaseConnectionInfo connectionInfo, string? containerName = null)
+        public MySqlProvider(DatabaseConnectionInfo connectionInfo, string? containerName = null)
         {
             _connectionInfo = connectionInfo;
-            _containerName = string.IsNullOrWhiteSpace(containerName) ? "database-backup-utility-postgres-1" : containerName;
+            _containerName = string.IsNullOrWhiteSpace(containerName) ? "database-backup-utility-mysql-1" : containerName;
         }
 
         public async Task<bool> TestConnectionAsync()
         {
             try
             {
-                using (var connection = new Npgsql.NpgsqlConnection(
-                    $"Host={_connectionInfo.Host};Port={_connectionInfo.Port};Username={_connectionInfo.Username};Password={_connectionInfo.Password};Database={_connectionInfo.DatabaseName}"))
-                {
-                    await connection.OpenAsync();
-                    Console.WriteLine("Connection test successful!");
-                    return true;
-                }
+                string connectionString = $"Server={_connectionInfo.Host};Port={_connectionInfo.Port};Database={_connectionInfo.DatabaseName};Uid={_connectionInfo.Username};Pwd={_connectionInfo.Password};";
+                using var connection = new MySqlConnection(connectionString);
+                await connection.OpenAsync();
+                Console.WriteLine("Connection test successful!");
+                return true;
             }
             catch (Exception ex)
             {
@@ -41,7 +39,7 @@ namespace DbBackupUtility.Providers
             if (type != BackupType.Full)
                 throw new NotSupportedException($"BackupType {type} is currently not supported for {ProviderName}.");
 
-            string arguments = $"exec {_containerName} pg_dump -U {_connectionInfo.Username} -d {_connectionInfo.DatabaseName} -F c -f /tmp/backup.sql";
+            string arguments = $"exec {_containerName} sh -c \"mysqldump -u{_connectionInfo.Username} -p{_connectionInfo.Password} {_connectionInfo.DatabaseName} > /tmp/backup.sql\"";
 
             var processStartInfo = new ProcessStartInfo
             {
@@ -62,7 +60,7 @@ namespace DbBackupUtility.Providers
                 if (process.ExitCode != 0)
                 {
                     string error = await process.StandardError.ReadToEndAsync();
-                    throw new Exception($"pg_dump failed with exit code {process.ExitCode}: {error}");
+                    throw new Exception($"mysqldump failed with exit code {process.ExitCode}: {error}");
                 }
             }
 
@@ -94,7 +92,6 @@ namespace DbBackupUtility.Providers
 
         public async Task RestoreDatabaseAsync(string backupFilePath)
         {
-            // 1. Copy backup file into container
             string copyArguments = $"cp \"{backupFilePath}\" {_containerName}:/tmp/restore.sql";
             var copyProcessStartInfo = new ProcessStartInfo
             {
@@ -118,9 +115,7 @@ namespace DbBackupUtility.Providers
                 }
             }
 
-            // 2. Execute pg_restore inside container
-            // Use --clean to drop existing objects before restoring
-            string arguments = $"exec {_containerName} pg_restore -U {_connectionInfo.Username} -d {_connectionInfo.DatabaseName} --clean /tmp/restore.sql";
+            string arguments = $"exec {_containerName} sh -c \"mysql -u{_connectionInfo.Username} -p{_connectionInfo.Password} {_connectionInfo.DatabaseName} < /tmp/restore.sql\"";
 
             var processStartInfo = new ProcessStartInfo
             {
@@ -141,7 +136,7 @@ namespace DbBackupUtility.Providers
                 if (process.ExitCode != 0)
                 {
                     string error = await process.StandardError.ReadToEndAsync();
-                    throw new Exception($"pg_restore failed with exit code {process.ExitCode}: {error}");
+                    throw new Exception($"mysql restore failed with exit code {process.ExitCode}: {error}");
                 }
             }
 
@@ -149,5 +144,3 @@ namespace DbBackupUtility.Providers
         }
     }
 }
-
-    

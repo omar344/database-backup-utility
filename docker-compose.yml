@@ -1,9 +1,29 @@
 services:
   postgres:
-    image: postgres:18
+    image: postgres:15
+    container_name: database-backup-utility-postgres-1
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: testdb
     ports:
       - "5433:5432"
+  mysql:
+    image: mysql:8.0
+    container_name: database-backup-utility-mysql-1
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin
+    ports:
+      - "3307:3306"
+  mongo:
+    image: mongo:6.0
+    container_name: database-backup-utility-mongo-1
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin
+      MONGO_INITDB_DATABASE: testdb
+    ports:
+      - "27018:27017"

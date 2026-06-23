@@ -39,14 +39,14 @@ namespace DbBackupUtility.Commands
                 }
 
                 IDatabaseProvider dbProvider;
-                if (provider.ToLower() == "postgres")
+                try
                 {
                     var connectionInfo = new DatabaseConnectionInfo(host, port, database, user, password);
-                    dbProvider = new PostgreSqlProvider(connectionInfo);
+                    dbProvider = DatabaseProviderFactory.Create(provider, connectionInfo);
                 }
-                else
+                catch (NotSupportedException ex)
                 {
-                    LoggingService.LogError($"Provider '{provider}' is not supported yet.");
+                    LoggingService.LogError(ex.Message);
                     return;
                 }
 
