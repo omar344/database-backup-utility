@@ -1,14 +1,21 @@
-﻿
-var postgreSqlProvider = new PostgreSqlProvider(new DatabaseConnectionInfo("localhost", 5433, "testdb", "admin", "admin"), "database-backup-utility-postgres-1");
+﻿using System.CommandLine;
+using DbBackupUtility.Commands;
+using DbBackupUtility.Services;
 
-Console.WriteLine("Testing database connection...");
-bool isConnected = await postgreSqlProvider.TestConnectionAsync();
+LoggingService.Initialize();
 
-if (isConnected)
+var rootCommand = new RootCommand("Database Backup Utility - cross-platform PostgreSQL backup and restore CLI")
 {
-    Console.WriteLine("Database connection successful.");
+    TestCommand.Create(),
+    BackupCommand.Create(),
+    RestoreCommand.Create()
+};
+
+try
+{
+    return await rootCommand.InvokeAsync(args);
 }
-else
+finally
 {
-    Console.WriteLine("Failed to connect to the database.");
+    LoggingService.Close();
 }

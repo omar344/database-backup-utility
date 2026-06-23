@@ -1,10 +1,12 @@
-class DatabaseConnectionInfo
+namespace DbBackupUtility.Models;
+
+public class DatabaseConnectionInfo
 {
-    public string Host { get; set; }
-    public int Port { get; set; }
-    public string DatabaseName { get; set; }
-    public string Username { get; set; }
-    public string Password { get; set; }
+    public string Host { get; }
+    public int Port { get; }
+    public string DatabaseName { get; }
+    public string Username { get; }
+    public string Password { get; }
 
     public DatabaseConnectionInfo(string host, int port, string databaseName, string username, string password)
     {
