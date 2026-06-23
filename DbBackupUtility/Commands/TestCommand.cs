@@ -1,5 +1,4 @@
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using DbBackupUtility.Models;
 using DbBackupUtility.Providers;
 
@@ -26,7 +25,7 @@ public static class TestCommand
         command.AddOption(databaseOption);
         command.AddOption(containerOption);
 
-        command.SetHandler(async (InvocationContext context) =>
+        command.SetHandler(async (System.CommandLine.Invocation.InvocationContext context) =>
         {
             try
             {

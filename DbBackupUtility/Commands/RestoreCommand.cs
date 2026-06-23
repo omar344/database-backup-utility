@@ -1,5 +1,4 @@
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using DbBackupUtility.Models;
 using DbBackupUtility.Providers;
 
@@ -28,7 +27,7 @@ public static class RestoreCommand
         command.AddOption(containerOption);
         command.AddOption(fileOption);
 
-        command.SetHandler(async (InvocationContext context) =>
+        command.SetHandler(async (System.CommandLine.Invocation.InvocationContext context) =>
         {
             try
             {
