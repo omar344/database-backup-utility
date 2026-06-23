@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Invocation;
 using DbBackupUtility.Models;
 using DbBackupUtility.Providers;
 
@@ -29,10 +30,20 @@ public static class BackupCommand
         command.AddOption(outputDirOption);
         command.AddOption(fileOption);
 
-        command.SetHandler(async (provider, host, port, user, password, database, container, outputDir, file) =>
+        command.SetHandler(async (InvocationContext context) =>
         {
             try
             {
+                var provider = context.ParseResult.GetValueForOption(providerOption) ?? "postgres";
+                var host = context.ParseResult.GetValueForOption(hostOption) ?? string.Empty;
+                var port = context.ParseResult.GetValueForOption(portOption);
+                var user = context.ParseResult.GetValueForOption(userOption) ?? string.Empty;
+                var password = context.ParseResult.GetValueForOption(passwordOption) ?? string.Empty;
+                var database = context.ParseResult.GetValueForOption(databaseOption) ?? string.Empty;
+                var container = context.ParseResult.GetValueForOption(containerOption) ?? "database-backup-utility-postgres-1";
+                var outputDir = context.ParseResult.GetValueForOption(outputDirOption) ?? "Backups";
+                var file = context.ParseResult.GetValueForOption(fileOption);
+
                 var connectionInfo = new DatabaseConnectionInfo(host, port, database, user, password);
                 var databaseProvider = DatabaseProviderFactory.CreateProvider(provider, connectionInfo, container);
 
@@ -50,9 +61,9 @@ public static class BackupCommand
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Backup failed: {ex.Message}");
-                Environment.ExitCode = 1;
+                context.ExitCode = 1;
             }
-        }, providerOption, hostOption, portOption, userOption, passwordOption, databaseOption, containerOption, outputDirOption, fileOption);
+        });
 
         return command;
     }

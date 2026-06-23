@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Invocation;
 using DbBackupUtility.Models;
 using DbBackupUtility.Providers;
 
@@ -27,10 +28,19 @@ public static class RestoreCommand
         command.AddOption(containerOption);
         command.AddOption(fileOption);
 
-        command.SetHandler(async (provider, host, port, user, password, database, container, filePath) =>
+        command.SetHandler(async (InvocationContext context) =>
         {
             try
             {
+                var provider = context.ParseResult.GetValueForOption(providerOption) ?? "postgres";
+                var host = context.ParseResult.GetValueForOption(hostOption) ?? string.Empty;
+                var port = context.ParseResult.GetValueForOption(portOption);
+                var user = context.ParseResult.GetValueForOption(userOption) ?? string.Empty;
+                var password = context.ParseResult.GetValueForOption(passwordOption) ?? string.Empty;
+                var database = context.ParseResult.GetValueForOption(databaseOption) ?? string.Empty;
+                var container = context.ParseResult.GetValueForOption(containerOption) ?? "database-backup-utility-postgres-1";
+                var filePath = context.ParseResult.GetValueForOption(fileOption) ?? string.Empty;
+
                 if (!File.Exists(filePath))
                 {
                     throw new FileNotFoundException($"Backup file not found: {filePath}");
@@ -46,9 +56,9 @@ public static class RestoreCommand
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Restore failed: {ex.Message}");
-                Environment.ExitCode = 1;
+                context.ExitCode = 1;
             }
-        }, providerOption, hostOption, portOption, userOption, passwordOption, databaseOption, containerOption, fileOption);
+        });
 
         return command;
     }
