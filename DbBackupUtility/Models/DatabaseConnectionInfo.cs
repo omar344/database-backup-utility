@@ -2,11 +2,11 @@ namespace DbBackupUtility.Models;
 
 public class DatabaseConnectionInfo
 {
-    public string Host { get; }
-    public int Port { get; }
-    public string DatabaseName { get; }
-    public string Username { get; }
-    public string Password { get; }
+    public string Host { get; init; }
+    public int Port { get; init; }
+    public string DatabaseName { get; init; }
+    public string Username { get; init; }
+    public string Password { get; init; }
 
     public DatabaseConnectionInfo(string host, int port, string databaseName, string username, string password)
     {
